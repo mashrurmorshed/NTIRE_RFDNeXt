@@ -28,7 +28,7 @@ def logger_info(logger_name, log_path='default_logger.log'):
     modified by Kai Zhang (github: https://github.com/cszn)
     '''
     log = logging.getLogger(logger_name)
-    if log.hasHandlers():
+    if False: #log.hasHandlers():
         print('LogHandlers exist!')
     else:
         print('LogHandlers setup!')
