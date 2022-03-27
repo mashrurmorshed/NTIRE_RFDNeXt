@@ -29,7 +29,7 @@ def main():
     # load model
     # --------------------------------
     # model_path = os.path.join('model_zoo', 'imdn_x4.pth')
-    model_path = "model_zoo/mrbx4_v1.pth"
+    model_path = "model_zoo/mrb_flickr_1.pth"
 
     # model = IMDN(in_nc=3, out_nc=3, nc=64, nb=8, upscale=4)
     model = RFDN(block_type="MRB", act_type="gelu")
