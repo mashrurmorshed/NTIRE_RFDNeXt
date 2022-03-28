@@ -170,7 +170,7 @@ class RFDB(nn.Module):
         return out_fused
 
 class MRB(nn.Module):
-    def __init__(self, in_channels, distill_factor=2, **kwargs):
+    def __init__(self, in_channels, distill_factor=2, act_type="gelu", **kwargs):
         super().__init__()
         DC = in_channels // distill_factor
         self.init_reduce = conv_layer(in_channels, DC, 1)
@@ -180,12 +180,13 @@ class MRB(nn.Module):
         self.end_reduce = conv_layer(4 * DC, in_channels, 1)
         
         self.esa = ESA(in_channels, nn.Conv2d)
+        self.act = activation(act_type)
 
     def forward(self, input):
-        r0 = F.gelu(self.init_reduce(input))
-        c1 = F.gelu(self.c1(r0) + r0)
-        c2 = F.gelu(self.c2(c1) + c1 + r0)
-        c3 = F.gelu(self.c3(c2) + c2 + c1 + r0)
+        r0 = self.act(self.init_reduce(input))
+        c1 = self.act(self.c1(r0) + r0)
+        c2 = self.act(self.c2(c1) + c1 + r0)
+        c3 = self.act(self.c3(c2) + c2 + c1 + r0)
 
         out = self.end_reduce(torch.cat([r0, c1, c2, c3], dim=1))
         out = self.esa(out)
