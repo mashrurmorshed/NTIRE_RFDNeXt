@@ -129,45 +129,61 @@ class ESA(nn.Module):
         
         return x * m
 
+class CX(nn.Module):
+    def __init__(self, C, act_type="gelu"):
+        super().__init__()
+
+        self.conv = nn.Sequential(
+            nn.Conv2d(C, C, 7, 1, 3, groups=C),
+            nn.Conv2d(C, 4 * C, 1),
+            activation(act_type),
+            nn.Conv2d(4 * C, C, 1)
+        )
+
+    def forward(self, x):
+        return self.conv(x) + x
 
 class RFDB(nn.Module):
     def __init__(self, in_channels, act_type, distill_factor=2):
         super().__init__()
         
-        self.dc = self.distilled_channels = in_channels // distill_factor
+        DC = in_channels // distill_factor
         
-        self.c1_d = conv_layer(in_channels, self.dc, 1)
-        self.c1_r = conv_layer(in_channels, in_channels, 3)
-        self.c2_d = conv_layer(in_channels, self.dc, 1)
-        self.c2_r = conv_layer(in_channels, in_channels, 3)
-        self.c3_d = conv_layer(in_channels, self.dc, 1)
-        self.c3_r = conv_layer(in_channels, in_channels, 3)
-        self.c4 = conv_layer(in_channels, self.dc, 3)
+        self.c1_d = conv_layer(in_channels, DC, 1)
+
+        self.c1_r = conv_layer(in_channels, DC, 3)
+        self.c2_d = conv_layer(DC, DC, 1)
+
+        self.c2_r = conv_layer(DC, DC, 3)
+        self.c3_d = conv_layer(DC, DC, 1)
+
+        self.c3_r = conv_layer(DC, DC, 3)
+
+        self.c4 = conv_layer(DC, DC, 3)
         
         self.act = activation(act_type)
         
-        self.c5 = conv_layer(self.dc * 4, in_channels, 1)
-        self.esa = ESA(in_channels, nn.Conv2d)
+        self.c5 = conv_layer(DC * 4, in_channels, 1)
+        self.esa = CX(in_channels, act_type)
 
     def forward(self, input):
-        distilled_c1 = self.act(self.c1_d(input))
-        r_c1 = (self.c1_r(input))
-        r_c1 = self.act(r_c1+input)
 
-        distilled_c2 = self.act(self.c2_d(r_c1))
-        r_c2 = (self.c2_r(r_c1))
-        r_c2 = self.act(r_c2+r_c1)
+        dc_1 = self.c1_d(input)
+        
+        rc_1 = self.c1_r(input) + dc_1
+        dc_2 = self.c2_d(rc_1)
+        
+        rc_2 = self.c2_r(rc_1) + rc_1
+        dc_3 = self.c3_d(rc_2)
 
-        distilled_c3 = self.act(self.c3_d(r_c2))
-        r_c3 = (self.c3_r(r_c2))
-        r_c3 = self.act(r_c3+r_c2)
+        rc_3 = self.act(self.c3_r(rc_2) + rc_2)
+        rc_4 = self.c4(rc_3)
 
-        r_c4 = self.act(self.c4(r_c3))
+        out = self.act(torch.cat([dc_1, dc_2, dc_3, rc_4], dim=1))
+        out = self.c5(out)
 
-        out = torch.cat([distilled_c1, distilled_c2, distilled_c3, r_c4], dim=1)
-        out_fused = self.esa(self.c5(out)) 
+        return self.esa(out)
 
-        return out_fused
 
 class MRB(nn.Module):
     def __init__(self, in_channels, distill_factor=2, act_type="gelu", **kwargs):
