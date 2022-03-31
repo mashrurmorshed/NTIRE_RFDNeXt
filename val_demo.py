@@ -6,7 +6,7 @@ import torch
 from utils import utils_logger
 from utils import utils_image as util
 from models.IMDN import IMDN
-
+from models.RFDN import RFDN
 
 def main():
 
@@ -28,9 +28,15 @@ def main():
     # --------------------------------
     # load model
     # --------------------------------
-    model_path = os.path.join('model_zoo', 'imdn_x4.pth')
-    model = IMDN(in_nc=3, out_nc=3, nc=64, nb=8, upscale=4)
-    model.load_state_dict(torch.load(model_path), strict=True)
+    # model_path = os.path.join('model_zoo', 'imdn_x4.pth')
+    model_path = "model_zoo/RFDNeXt_v1.pth"
+
+    # model = IMDN(in_nc=3, out_nc=3, nc=64, nb=8, upscale=4)
+    model = RFDN(block_type="RFDB", act_type="lrelu")
+
+    # model.load_state_dict(torch.load(model_path), strict=True)
+    model.load_state_dict(torch.load(model_path, map_location="cpu")["model_state_dict"])
+    
     model.eval()
     for k, v in model.named_parameters():
         v.requires_grad = False
